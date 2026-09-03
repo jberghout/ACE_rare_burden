@@ -5,7 +5,9 @@
 This repository was created to support a human genetics and bioinformatics workshop given during the African Centers for Excellence (ACE) Global Council in Sept 2026. Students can find all training materials and example code. 
 
 In order to run all materials, students will need:
-1. RStudio or Positron installed on their computer
+1. RStudio or Positron installed on their computer. Both are free and open-source, available to install at the links below if necessary.
+- https://posit.co/products/open-source/rstudio
+- https://posit.co/products/ide/positron
 2. The ability to connect to the [ACE Uganda HPC](https://ace-bioinformatics.github.io/ace-ug-hpc-wiki/)
 
 Optional, but very useful: 
