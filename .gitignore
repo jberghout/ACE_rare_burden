@@ -1,0 +1,95 @@
+#Apple
+.DS_Store
+
+# ==========================================
+# Genomics & Bioinformatics .gitignore
+# ==========================================
+
+# ------------------------------------------
+# 1. Raw Sequencing & Text Formats (Massive Files)
+# ------------------------------------------
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.fasta
+*.fasta.gz
+*.fa
+*.fa.gz
+*.fna
+*.faa
+
+# ------------------------------------------
+# 2. Alignments, BAM, and SAM Variants
+# ------------------------------------------
+*.sam
+*.bam
+*.cram
+# Do not track large indexing files
+*.bai
+*.crai
+*.fai
+
+# ------------------------------------------
+# 3. Variant Calling Data
+# ------------------------------------------
+*.vcf
+*.vcf.gz
+*.bcf
+*.tbi
+*.idx
+
+# ------------------------------------------
+# 4. Genome Browser Tracks & Interval Data
+# ------------------------------------------
+*.bed
+*.gff
+*.gff3
+*.gtf
+*.wig
+*.bigWig
+*.bw
+*.bigBed
+*.bb
+
+# ------------------------------------------
+# 5. Pipeline & Workflow Managers
+# ------------------------------------------
+# Nextflow temporary outputs and execution history
+.nextflow/
+.nextflow.log*
+work/
+
+# Snakemake caches, logs, and environments
+.snakemake/
+
+# ------------------------------------------
+# 6. Tool-Specific & Local Data Cache
+# ------------------------------------------
+# MultiQC report dependencies (keep the HTML report if needed, ignore data)
+*multiqc_data/
+
+# Conda / Mamba environment backups
+.conda/
+conda_env/
+
+# Data and output directory structures
+data/
+results/
+output/
+tmp/
+
+# ------------------------------------------
+# 7. Common Language Ecosystems (Python/R)
+# ------------------------------------------
+# Python compilation and packages
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+env/
+
+# R project artifacts
+.Rhistory
+.RData
+.Ruserdata
