@@ -1,0 +1,583 @@
+---
+title: "Variant filtering and SKAT-O Burden Testing"
+format:
+  html:
+    toc: true
+    fig-width: 10
+    fig-height: 7
+---
+
+## Overview
+
+This markdown document loads the VEP-annotated variant call format (VCF) file provided, filters it to qualifying variants, and conducts the burden test against our phenotypes using R.
+
+------------------------------------------------------------------------
+
+```{r, warnings=FALSE, message=FALSE}
+library(tidyverse)
+library(patchwork)
+library(skimr)
+library(SKAT)
+library(VariantAnnotation)
+
+# Because VariantAnnotation masks the dplyr::select filter we will tell this script at the top to always use dplyr::select when we type select()
+select <- dplyr::select
+```
+
+## 1. Load and Look at data
+
+
+We will first look at the VCF as a table to see what it contains. Then, we will use specialized functions from the VariantAnnotation package to load it into our environment in a way that preserves many of the unique features.
+
+The version we are loading here is the VEP annotated VCF which has added a lot of content to the INFO column. If you load the _noInfo version (and update to skip = 13) you can see just the essential VCF that you get back from a variant calling process.
+
+```{r}
+# Load as a data table. We need to skip the first 13 rows which contain header information. Try with and without the 'skip' phrase to see some of the content in a VCF header. 
+input_vcf_asDataFrame <- read_delim("/etc/ace-data/home/jberghout/2026_ACE_bioinfo_burden/data/synthetic_cohort_vep.vcf.gz", delim="\t", skip = 61)
+```
+
+Use `View(synthetic_cohort_noInfo_vcf)` to see the table in the Viewer.
+
+Now, we will load the data using VariantAnnotation. Because real VCFs are often very, very large, this function loads the table a "Collapsed VCF" which is more complex for a human to read. However, this is designed specifically to work with VCFs, and is able to preserve or extract a lot of information that we would need to write custom functions to do without it.
+
+```{r}
+input_vcf <- readVcf("/etc/ace-data/home/jberghout/2026_ACE_bioinfo_burden/data/synthetic_cohort_vep.vcf.gz")
+```
+
+### 1.1 Inspect the VCF.
+
+The collapsed VCF is a complex object parsed into several connected components. Full package and handling description is here: <https://bioconductor.org/packages//release/bioc/vignettes/VariantAnnotation/inst/doc/VariantAnnotation.html>
+
+The component 'colData' contains the sample IDs and any sample-level metadata.
+
+```{r}
+head(input_vcf@colData)
+```
+
+The component 'rowRanges' contains the genomic coordinates and variant IDs.
+
+```{r}
+head(input_vcf@rowRanges)
+```
+
+The component 'fixed' contains the reference and alternate alleles, as well as the quality score and filter status. It is named 'fixed' because these are required columns in the VCF format.
+
+```{r}
+head(input_vcf@fixed)
+```
+
+The component 'info' contains all the information about the variant that we've added with VEP (or any other tool). These are the variant annotations, including the VEP consequences, allele frequency, and bioinformatics scores fields.
+
+```{r}
+head(input_vcf@info)
+```
+
+The component 'geno' contains the genotype calls for each sample. In our synthetic dataset, only GT (genotype) is present, but other fields may be present in other real datasets, such as AD (allelic depth), DP (read depth), GQ (genotype quality), PL (phred-scaled likelihoods), etc. This is stored as a collapsed matrix, so we'll just look at what class of data is present for now.
+
+```{r}
+geno(header(input_vcf))
+```
+
+### 1.2 Extract column names from the VEP CSQ format string in the header
+
+You may have noticed the data in the @info slot is a single string with pipe-delimited fields. The VEP CSQ field is a special case where the format of the string is described in the VCF header. We'll extract that information and use it to parse the CSQ strings into a tidy data frame.
+
+```{r}
+csq_desc <- info(header(input_vcf))["CSQ", "Description"]
+csq_fields <- str_split(str_extract(csq_desc, "(?<=Format: ).*"), "\\|")[[1]]
+
+# Extract the data from the input VCF into a dataframe
+csq_raw <- info(input_vcf)$CSQ
+```
+
+```{r}
+# This specifies that each variant row in our dataframe should be labeled with the variant ID (ex. rs553341717 or chr13:32396824_A/C) as specified in the rowRanges slot of the annotated VCF. If that field is NULL/empty for a given variant, the variant row will be labeled with a unique index number. 
+variant_ids <- names(rowRanges(input_vcf))
+if (is.null(variant_ids)) variant_ids <- as.character(seq_along(csq_raw))
+
+#Unnest the vcf@info into a dataframe with the variant ID and the CSQ string extracted from the header to become column names, then separate the CSQ string into its component fields
+csq_df <- tibble(
+  variant_id = rep(variant_ids, lengths(csq_raw)),
+  csq_string = unlist(csq_raw)
+) %>%
+  separate(csq_string, into = csq_fields, sep = "\\|", fill = "right")
+```
+
+### 1.3 Explore the csq_df to understand what we're looking at
+
+Use: `View(csq_df)` to take a look at the consequence dataframe (csq_df) in your viewer window.
+
+Use skim to extract a rapid summary
+
+```{r}
+skim(csq_df)
+```
+
+There's a lot of great stuff in there, and it is very dense. We'll focus on a few selected columns, but it is worth exploring more.
+
+#### 1.3.1 Column orientation
+
+The columns we'll pay attention to are:
+
+-   **Consequence:** standardized term to describe what kind of effect is expected by the variant [https://jun2026.archive.ensembl.org/info/genome/variation/prediction/predicted_data.html ](https://jun2026.archive.ensembl.org/info/genome/variation/prediction/predicted_data.html )
+
+-   **IMPACT:** the consequence types are all mapped to a high/medium/low impact score as a shortcut useful for filtering and prioritization. Note that all missense variants are classified as "medium" (regardless of if they are damaging/pathogenic or tolerated/benign), and all synonymous variants are classified as "low" (regardless of if they are splice-disrupting or not). So "IMPACT" should be considered a noisy feature.
+
+-   **SYMBOL/Gene**
+
+-   **BIOTYPE:** the type of biological entity (e.g., protein-coding, lncRNA) affected by the variant. In this analysis, we will only be looking at protein-coding genes.
+
+-   **VARIANT_CLASS:** SNV, indel, etc as described here: [https://jun2026.archive.ensembl.org/info/genome/variation/prediction/classification.html.](https://jun2026.archive.ensembl.org/info/genome/variation/prediction/classification.html) These are a useful way to explore your data and understand which kinds of filters will be appropriate
+
+-   **CANONICAL:** many genes can have alternative splicing, and so many specific annotations for a DNA variant may have different annotations (e.g. amino acid position). This column indicates whether the transcript described by the row is the canonical or "best" single representative transcript for that gene.
+
+-   **gnomADe_AF:** the allele frequency (AF) of the variant in the gnomAD exome dataset of 730,947 individuals (<https://gnomad.broadinstitute.org/>). This dataset is useful as a population reference to understand if the variant is rare or common in a global population. There are adjacent columns that look at the allele frequency in continental subpopulations and a more careful analysis will use them all, but we will focus on the overall AF for simplicity.
+
+-   **CLIN_SIG:** interpretation of the variant pulled from the ClinVar database (<https://www.ncbi.nlm.nih.gov/clinvar/>). These are typically variants that have been interpreted as being causal (pathogenic) or benign for a genetic condition by a clinical genetics laboratory or expert researcher.
+
+-   **SpliceAI_cutoff** and **SpliceAI_pred_DS_AG, SpliceAI_pred_DS_AL, SpliceAI_pred_DS_DG, SpliceAI_pred_DS_DL**: pre-computed bioinformatic prediction of a variant's ability to functionally create or destroy a splice site that may change the transcript, according to the algorithm SpliceAI. The DS (delta score) is a number between 0 (low) - 1 (high) that reflects the predicted likelihood that the variant will splice differently from the reference allele at that position. See: <https://pubmed.ncbi.nlm.nih.gov/30661751/>
+
+-   **CADD_phred:** a pre-computed log-scaled bioinformatic rank prediction of the deleteriousness of a variant, scored as \>20 = in the most damaging 1% of all possible variants in the genome, \>30 = in the most damaging 0.1%, etc. See: <https://pubmed.ncbi.nlm.nih.gov/38183205/>
+
+-   **am_pathogenicity** and **am_class**: a pre-computed bioinformatics prediction of a variant's ability to functionally damage the protein product of a gene, according to the algorithm Alpha Missense. The score goes from 0 (tolerated) to 1 (confidently predicted to be disruptive) with interpretation according to recommended score thresholds appearing as am_class. See: <https://pubmed.ncbi.nlm.nih.gov/37733863/>
+
+-   **LOF:** a pre-computed bioinformatics evaluation of predicted loss-of-function (pLOF) variant types according to a set of rules that increase or decrease confidence in the true loss-of-function effect. For example, a stop-gain in an exon that is not used by the canonical transcript is low confidence (LC) in truly being a loss-of-function while a stop-gain in a highly used exon is likely to be high confidence (HC). See: <https://github.com/konradjk/loftee>
+
+#### 1.3.2 Column type conversions
+
+You can also notice that all of the variables have read in as "character" type, even though some of them are intended as numeric. We can convert those before we apply our filters.
+
+```{r}
+csq_df_processed<-csq_df %>%
+  mutate(
+    gnomADe_AF = as.numeric(gnomADe_AF),
+    am_pathogenicity = as.numeric(am_pathogenicity),
+    CADD_phred = as.numeric(CADD_phred),
+    SpliceAI_pred_DS_AG = as.numeric(SpliceAI_pred_DS_AG),
+    SpliceAI_pred_DS_AL = as.numeric(SpliceAI_pred_DS_AL),
+    SpliceAI_pred_DS_DG = as.numeric(SpliceAI_pred_DS_DG),
+    SpliceAI_pred_DS_DL = as.numeric(SpliceAI_pred_DS_DL)
+  )
+```
+
+#### 1.3.3 Allele frequency
+
+If a variant has no value (missing/empty) in the gnomADe allele frequency field, this suggests that the variant is absent from the gnomAD database, and therefore *is likely to be extremely rare*. These are variants that we want to keep in our rare disease analysis.
+
+To ensure we do not accidentally exclude these variants missing from gnomAD, we will set all missing to zero. This allows us to apply filters and graph these more easily.
+
+```{r}
+csq_df_processed <- csq_df_processed %>%
+  mutate(
+    gnomADe_AF = case_when(
+      is.na(gnomADe_AF) ~ 0,
+      TRUE ~ gnomADe_AF
+    )
+  )
+```
+
+### 1.4 Create some plots and tables: pre-filtering
+
+Plots can be extremely valuable to survey the data and better understand what it is you are working with.
+
+#### 1.4.1 Plot allele frequency
+
+In this analysis, we are mostly going to be interested in rare variants. Review the distribution before making any assumptions.
+
+```{r}
+ggplot(csq_df_processed, aes(x = gnomADe_AF)) +
+  geom_histogram(bins = 100) +
+  scale_x_log10() +
+  labs(
+    title = "Allele Frequency Distribution",
+    x = "gnomAD Exome Allele Frequency (log10 scale)",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+#### 1.4.2 Summarize the variant consequence types.
+
+In this analysis, we will want to eventually end up with a filtered list of qualifying variants that have a higher probability of being functional. These will fall into certain consequence classes.
+
+Distribution of variant consequences
+
+```{r}
+csq_df_processed %>%
+  group_by(Consequence) %>%
+  summarise(n = n_distinct(HGVSg)) %>%
+  arrange(desc(n))
+```
+
+#### 1.4.3 Summarize the number of genes represented and variants per gene
+
+Number of genes and variants per gene
+
+```{r}
+csq_df_processed %>%
+  group_by(SYMBOL, BIOTYPE) %>%
+  summarise(n_variants = n_distinct(HGVSg)) %>%
+  arrange(desc(n_variants))
+
+```
+
+#### 1.4.4 Review bioinformatics prediction scores and annotations
+
+These scores will be an important part of how we filter the all variants input table to qualifying variants predicted to be impactful to the gene.
+
+Notice that many bioinformatics scores will only score a subset of variant types. For example, AlphaMissense only scores missense variants, LOF only evaluates loss-of-function variants, and the pre-computed SpliceAI only scores variants within 50bp of a coding region (inclusive of coding exons themselves).
+
+This leads to many variants having missing values because the score was not applicable. We want to make sure to handle these missing values appropriately when we apply our filters because (1) a missing value can not pass a filter that relies on a value being present, and (2) not all missingness is equal.
+
+**AlphaMissense**
+
+```{r}
+# For graphical purposes, we will filter out variants where the consequence field has more than one consequence listed (i.e. "missense_variant&splice_region_variant"). This is just because the text along the y-axis will become extremely long.
+ggplot(csq_df_processed %>%
+    filter_out(str_detect(Consequence, "&")), 
+    aes(x = Consequence, y = am_pathogenicity)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(
+    title = "AlphaMissense Pathogenicity Score by Consequence",
+    x = "Consequence",
+    y = "am_pathogenicity"
+  )
+
+ggplot(csq_df_processed %>%
+    filter_out(str_detect(Consequence, "&")), 
+    aes(x = Consequence, y = CADD_phred)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(
+    title = "CADD Phred Score by Consequence",
+    x = "Consequence",
+    y = "CADD Phred"
+  )
+
+```
+
+**SpliceAI**
+
+The numeric part of SpliceAI is distributed across 4 columns. We will compute a maximum score before plotting.
+
+The individual scores are:
+
+-   SpliceAI_pred_DS_AG: SpliceAI prediction delta score acceptor gain
+
+-   SpliceAI_pred_DS_AL: SpliceAI prediction delta score acceptor loss
+
+-   SpliceAI_pred_DS_DG: SpliceAI prediction delta score donor gain
+
+-   SpliceAI_pred_DS_DL: SpliceAI prediction delta score donor loss
+
+```{r}
+csq_df_processed <- csq_df_processed %>%
+  mutate(
+    spliceai_max = pmax(
+      SpliceAI_pred_DS_AG, SpliceAI_pred_DS_AL,
+      SpliceAI_pred_DS_DG, SpliceAI_pred_DS_DL,
+      na.rm = TRUE
+    )
+  )
+
+ggplot(csq_df_processed %>%
+    filter_out(str_detect(Consequence, "&")), 
+    aes(x = Consequence, y = spliceai_max)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(
+    title = "SpliceAI Max Score by Consequence",
+    x = "Consequence",
+    y = "SpliceAI Max"
+  )
+
+```
+
+**CADD**
+
+```{r}
+ggplot(csq_df_processed %>%
+    filter_out(str_detect(Consequence, "&")), 
+    aes(x = Consequence, y = CADD_phred)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(
+    title = "CADD Score by Consequence",
+    x = "Consequence",
+    y = "CADD score"
+  )
+```
+
+## 2 Develop filtering criteria
+
+We will define a 'qualifying variant' as one that meets the following criteria:
+
+1. Is rare (gnomAD exome allele frequency \<= 0.01) from gnomAD, AND
+
+1. Is described in ClinVar as "pathogenic" or "likely pathogenic" OR
+2. Is predicted to result in a loss-of-function effect that is not flagged as being low-confidence by LOFTEE, OR
+3. Is any variant predicted to affect splicing by SpliceAI with a delta score \>= 0.2, OR
+4. Is a missense variant predicted to be damaging by AlphaMissense with a score \>= 0.5, OR
+5. Is any variant with a CADD score \>= 25
+
+The thresholds chosen reflect fairly common standards for prioritizing a variant as potentially functional. However, there is always a bit of nuance. Some genes may require more stringent thresholds, or be more much more sensitive to less stringent choices. Some genes are well-understood to be disease-associated via a loss-of-function mechanism (insufficient abundance of protein, loss of stability, or the protein has lost essential function), other genes may cause disease via a different mechanism like mis-targeting, gain-of-function or dominant-negative effects. 
+
+### 2.1 Ensure actual data and filter criteria are matched
+
+```{r}
+# Before setting up the filter, check what values are present in several relevant columns. Check all the unique values in the ClinVar pathogenicity column. Note that there can be irregular capitalization and punctuation, as well as more than one assertion or conflicting assertions. So we will use our expertise to choose which ones qualify
+unique(csq_df_processed$CLIN_SIG)
+```
+
+```{r}
+# This check allows us to review the data and evaluate if all of our predicted loss-of-function consequence types can be captured by the IMPACT == HIGH (answer: yes), or if we need to be more specific
+csq_df_processed %>%
+  group_by(IMPACT, Consequence) %>%
+  summarise(n = n_distinct(HGVSg)) %>%
+  arrange(IMPACT) %>%
+  print(n=Inf)
+
+```
+
+### 2.2 Apply the filter to the dataframe
+```{r}
+csq_filtered<- csq_df_processed %>%
+  # ClinVar pathogenicity can bypass other filters as a standalone. We will also force any Clinvar benign to be benign, regardless of other bioinformatics scores.
+  mutate(qualifying_variant = case_when(
+    # all variants with evidence of benign are disqualified
+    str_detect(CLIN_SIG, "benign") ~ "disqualified_benign",
+
+    # all variants with pathogenic interpretations are qualified.
+    CLIN_SIG %in% c(
+      "pathogenic/likely_pathogenic&pathogenic",
+      "pathogenic",
+      "likely_pathogenic&pathogenic",
+      "likely_pathogenic",
+      "pathogenic/likely_pathogenic",
+      "not_provided&pathogenic",
+      "pathogenic&likely_pathogenic") ~ "qualifying_clinvar",
+    
+    # rare, high impact variants are qualified unless LOFTEE considers them low-confidence
+    gnomADe_AF <= 0.01 & IMPACT == "HIGH" & LoF != "LC" ~ "qualifying_lof",
+
+    # rare variants (any type) that pass the SpliceAI threshold are qualified
+    gnomADe_AF <= 0.01 & spliceai_max >= 0.2 ~ "qualifying_spliceai",
+
+    # rare variants that pass the AlphaMissense threshold are qualified
+    gnomADe_AF <= 0.01 & am_pathogenicity >= 0.5 ~ "qualifying_alphamissense",
+
+    # rare variants that pass the CADD threshold are qualified
+    gnomADe_AF <= 0.01 & CADD_phred >= 25 ~ "qualifying_cadd",
+
+    # did not meet any of the above criteria, so disqualified
+    .default = "disqualified"))
+
+```
+
+### 2.3 Summarize the results of the filtering process
+
+First, take a look at the qualifying variants according to each filter.
+```{r}
+csq_filtered %>%
+  group_by(qualifying_variant) %>%
+  summarise(n = n_distinct(HGVSg)) %>%
+  arrange(desc(qualifying_variant))
+```
+
+Satisfied, we now apply the filter to the dataframe
+```{r}
+csq_filtered <- csq_filtered %>%
+  filter_out(qualifying_variant %in% c("disqualified_benign", "disqualified"))
+
+csq_filtered %>%
+  group_by(qualifying_variant) %>%
+  summarise(n = n_distinct(HGVSg)) %>%
+  arrange(desc(qualifying_variant))
+```
+
+## 3. Prepare the genotype matrix for SKAT-O
+
+The genotype matrix is a matrix of samples x variants, where each cell contains the dosage of the alternate allele for that sample at that variant. The SKAT-O test will use this matrix to evaluate whether the burden of qualifying variants in a gene is associated with the phenotype of interest.
+
+### 3.1 Filter the VCF to only qualified variants
+
+Use the csq_filtered dataframe to filter the input_vcf rows.
+```{r}
+variant_ids <- csq_filtered$variant_id
+vcf_filtered <- input_vcf[variant_ids %in% variant_ids]
+```
+
+### 3.2 Retrieve genotypes
+
+Extract genotype calls and which participants carry each variant from the filtered VCF.
+
+```{r}
+# Get genotype matrix for the filtered variants from the input vcf
+gt<-geno(vcf_filtered)$GT
+```
+
+### 3.3 Recode genotypes to dosage
+
+In the VCF, genotypes are encoded as 0/0 (reference homozygote), 0/1 (heterozygous), 1/1 (alternate homozygote), and ./. (missing). 
+
+We will recode these to 0 (reference homozygote), 1 (heterozygous), 2 (alternate homozygote), and NA (missing) to work appropriately with the SKAT-O test statistic. This can also be called a variant dosage or effect allele dosage encoding, as the 0, 1, 2 values reflect the number of alternate alleles present in the sample for that variant.
+
+```{r}
+dosage <- apply(gt, 2, function(x) {
+  case_when(
+    x %in% c("0/0", "0|0") ~ 0L,
+    x %in% c("0/1", "1/0", "0|1", "1|0") ~ 1L,
+    x %in% c("1/1", "1|1") ~ 2L,
+    TRUE ~ NA_integer_
+  )
+})
+rownames(dosage) <- rownames(gt)  # variant ids
+```
+
+### 3.4 Filter the genotype matrix to only include the samples that passed QC
+
+In the previous markdown worksheet, we used sample level QC data to determine which participants were suitable for analysis. Any samples that failed QC should be excluded from the analysis as they can introduce technical artifacts or may have other issues we do not want.
+
+In the previous .qmd, we named this dataframe `participant_final`.
+
+This object may already be in your environment, but if not, you can load it from the RDS file we saved and/or an exported tsv file. There should be 490 participants in the final analysis-ready sample set.
+
+```{r}
+# We want to ensure that case control status and our key covariates (phenotypes, sex, PCs) are present 
+skim(participant_final)
+```
+
+#### 3.4.1 Recode categorical variables
+
+To use in a logistic regression or other statistical model, it can be helpful to recode categorical variables as numbers or transform them to ordered factors instead of just using text. 
+
+We will recode:
+- case = 1; control = 0
+- sex_male = 1; sex_female = 0
+- respiratory_disease = 1; no_respiratory_disease = 0
+- pancreatic_disease = 1; no_pancreatic_disease = 0
+
+```{r}
+participant_numeric <- participant_final %>%
+  mutate(
+    case_control_numeric = case_when(
+      status == "case" ~ 1L,
+      status == "control" ~ 0L,
+      TRUE ~ NA_integer_
+    ),
+    sex_male = case_when(
+      sex == "M" ~ 1L,
+      sex == "F" ~ 0L,
+      TRUE ~ NA_integer_
+    ),
+    respiratory_infection_numeric = case_when(
+      respiratory_infection == "yes" ~ 1L,
+      respiratory_infection == "no" ~ 0L,
+      TRUE ~ NA_integer_
+    ),
+    pancreatitis_numeric = case_when(
+      pancreatitis == "yes" ~ 1L,
+      pancreatitis == "no" ~ 0L,
+      TRUE ~ NA_integer_
+    )
+  )
+
+participant_numeric<-participant_numeric %>%
+  dplyr::select(sample_id, predicted_ancestry, case_control_numeric, sex_male, respiratory_infection_numeric, pancreatitis_numeric, heart_rate, PC1, PC2, PC3, PC4, PC5)
+
+```
+
+### 3.5 Filter the VCF
+
+Reduce the genotype matrix to only those samples that are present in the participant_numeric dataframe. 
+
+```{r}
+intersected_samples <- intersect(participant_numeric$sample_id, colnames(dosage))
+
+# We'll rename the participant_numeric dataframe to model_data to reflect that this is the data we will use in our statistical model. We'll filter this to only those samples also found in the VCF (which we expect to be all of them).
+model_data <- participant_numeric %>% filter(sample_id %in% intersected_samples) %>%
+  arrange(match(sample_id, intersected_samples))
+```
+
+```{r}
+# We'll name our genotype matrix Z which is the way the SKAT package describes in their documentation. This is samples x qualifying variants as dosage.
+Z <- t(dosage[, intersected_samples, drop = FALSE])  
+
+```
+
+# 4. Group qualifying variants by gene and prepare for SKAT-O
+
+The foundation of a burden test is that the variants themselves may be distinct, but they reflect a common disruption to the same gene. 
+
+We can map variants to genes by using the csq_filtered dataframe we'd created above.
+```{r}
+gene_variant_map <- csq_filtered %>%
+  distinct(variant_id, SYMBOL) %>%
+  filter(variant_id %in% rownames(dosage))
+```
+
+Count qualifying variants per gene. Note that this count is independent of whether the variant was observed in cases or controls.
+```{r}
+# Which genes harbored a qualifying variant in our dataset?
+genes <- unique(gene_variant_map$SYMBOL)
+genes
+```
+
+```{r}
+# How many qualifying variants per gene after filtering.
+gene_variant_map %>%
+  group_by(SYMBOL) %>%
+  summarise(n_variants = n_distinct(variant_id)) %>%
+  arrange(desc(n_variants))
+```
+
+# 5. Run SKAT-o
+
+## 5.1 Run the NULL model for SKAT-O
+
+Running the null model is a necessary step before running the SKAT-O test. The null model describes the relationship between the phenotype and covariates, without including the genetic variants. This allows us to test whether the genetic variants provide additional explanatory power for the phenotype.
+
+```{r}
+null_model <- SKAT_Null_Model(
+  #phenotype of interest ~ covariates
+  case_control_numeric ~ sex_male + PC1 + PC2 + PC3 + PC4,
+  data = model_data,
+  out_type = "D"
+)
+```
+
+## 5.2 Run the SKAT-O test for each gene
+
+If we use the defaults of SKATBinary, the test will implicitly weight the variants according to their allele frequency, with rarer variants being given more weight. This is a common and sensical approach for this style of analysis. 
+
+In addition, allele frequency based weighting allows us to avoid deciding on a strategy to weight variatns based on bioinformatic scores which can be patchy with missing values, or noisy with gene-specific effects. However, for certain real studies, there may be substantial value in weighting variants, especially if those weights can be derived from functional studies or other high-quality evidence. 
+
+```{r}
+# Run the burden test function, gene-by-gene
+run_skato_gene <- function(gene) {
+  variant_ids <- gene_variant_map$variant_id[gene_variant_map$SYMBOL == gene]
+  Z_gene <- Z[, variant_ids, drop = FALSE]
+  Z_gene <- Z_gene[, colSums(is.na(Z_gene)) < nrow(Z_gene), drop = FALSE]  # drop all-NA cols
+
+  if (ncol(Z_gene) == 0) return(NULL)
+
+  result <- SKATBinary(Z_gene, null_model, method = "SKATO")
+
+  tibble(gene = gene, n_variants = ncol(Z_gene), p_value = result$p.value)
+}
+
+# Apply the function over each gene and create the summary table
+skato_results <- bind_rows(lapply(genes, run_skato_gene))
+```
+
+## 5.3 View results
+
+Here, we can see that the p-value for two of our genes is non-significant, and a very low p-value has been calculated for CFTR. So, in our workflow, CFTR is associated with the case-control phenotype. Try it against the other phenotypes!
+
+Return to line 541 and edit the NULL model to reflect a phenotype other than "case_control_numeric"
+
+```{r}
+skato_results
+```
+

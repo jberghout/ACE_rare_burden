@@ -43,20 +43,20 @@ Les chemins indiqués ici sont ceux du HPC Uganda. Si vous avez téléchargé le
 
 ```{r}
 #Charger le fichier contenant des données d'exemple
-participant_status <- read_delim("2026_ACE_bioinfo_burden/data/participant_data.tsv", 
+participant_status <- read_delim("/etc/ace-data/home/jberghout/2026_ACE_bioinfo_burden/data/participant_data.tsv", 
     delim = "\t", escape_double = FALSE, 
     trim_ws = TRUE)
 ```
 
 ```{r}
 #Charger le fichier avec contrôle qualité au niveau de l'échantillon
-sample_qc_flags <- read_delim("2026_ACE_bioinfo_burden/data//sample_qc_flags.tsv", 
+sample_qc_flags <- read_delim("/etc/ace-data/home/jberghout/2026_ACE_bioinfo_burden/data/sample_qc_flags.tsv", 
     delim = "\t", escape_double = FALSE, trim_ws = TRUE)
 ```
 
 ```{r}
 #Charger le fichier d'ascendance
-ancestry_table <- read_delim("2026_ACE_bioinfo_burden/data/ancestry_table.tsv", 
+ancestry_table <- read_delim("/etc/ace-data/home/jberghout/2026_ACE_bioinfo_burden/data/ancestry_table.tsv", 
     delim = "\t", escape_double = FALSE, 
     trim_ws = TRUE)
 ```
@@ -141,7 +141,7 @@ ggvenn(data_vs_qc)
 
 # Qu'en est-il des fichiers généalogiques ?
 data_vs_ancestry<-list(
-  ancestry = ancestry$`#sample_id`,
+  ancestry = ancestry_table$`#sample_id`,
   data = participant_status$sample_id
 )
 ggvenn(data_vs_ancestry)
@@ -329,14 +329,14 @@ Nous utiliserons ces PCs d’ascendance comme covariables pour réduire la confu
 
 ```{r}
 # Remarquez que la table d'ascendance inclut également certains échantillons de référence du projet 1000 Genomes en plus de nos échantillons
-head(ancestry)
-skim(ancestry)
+head(ancestry_table)
+skim(ancestry_table)
 ```
 
 Tracer les deux premières PCs pour visualiser.
 
 ```{r}
-ancestry %>%
+ancestry_table %>%
   ggplot(aes(x = PC1, y = PC2, color = predicted_ancestry)) +
   geom_point() +
   theme_minimal() +
@@ -351,7 +351,7 @@ Dans cette jointure de tables, vous remarquerez que nous devons joindre la table
 
 ```{r}
 participant_final <- participant_final %>%
-  left_join(ancestry %>% 
+  left_join(ancestry_table %>% 
             dplyr::select(`#sample_id`, predicted_ancestry, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, PC9, PC10), 
             by = c("sample_id" = "#sample_id"))
 ```
@@ -376,11 +376,13 @@ participant_final %>%
   labs(title = "Distribution de l'ascendance de la cohorte", x = "PC1", y = "PC3")
 ```
 
-# Optionnel :
+# Avant le partie 2 (optionnelle) :
 
 Enregistrez le tableau participant_final au format tsv dans votre dossier de résultats.
+
 Si vous continuez à travailler dans la même session active et pouvez voir participant_final dans votre 'Environment' (barre latérale), vous n'avez pas besoin d'enregistrer et de recharger le fichier — cette étape est donc facultative pendant le tutoriel. Lorsque vous travaillerez avec vos données réelles à l'avenir, vous voudrez enregistrer votre jeu de données final à des fins d'archivage.
 
 ```{r, eval = FALSE}
-write_tsv(participant_final, "participant_final.tsv")
+# Si vous voulez enregistrer ceci, sauvegardez le chemin vers votre propre dossier et/ou donnez-lui votre propre nom.
+write_tsv(participant_final, "/etc/ace-data/home/jberghout/2026_ACE_bioinfo_burden/results/participant_final.tsv")
 ```

@@ -25,16 +25,17 @@ library(patchwork)
 # This package is used for graphical layouts
 
 library(ggvenn)
-# This package is used to make Venn diagrams
+# Ce paquet est utilisé pour créer des diagrammes de Venn
 
 library(skimr)
 # This package allows quick summarization of data tables
 ```
 
-If you need to install any of these packages, you can use the sidebar tab <Packages>, press <Install>, and type the name to get the package from CRAN (Comprehensive R Archive Network).
-You can do the same thing by typing: install.packages("SKAT") and pressing enter.
-If an R package is not aviailable through CRAN, it may be available through Bioconductor. Run:
+Si vous devez installer l'un de ces paquets, vous pouvez utiliser l'onglet latéral <Packages>, cliquer sur <Install>, et taper le nom pour obtenir le paquet depuis CRAN (Comprehensive R Archive Network).
+Vous pouvez faire de même en tapant : install.packages("SKAT") puis en appuyant sur Entrée.
 
+Si un paquet R n'est pas disponible via CRAN, il peut être disponible via Bioconductor. Exécutez :
+:
 `if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
@@ -49,20 +50,20 @@ The paths here are for the Uganda HPC. If you have downloaded the files, edit th
 
 ```{r}
 #Load file with sample data
-participant_status <- read_delim("2026_ACE_bioinfo_burden/data/participant_data.tsv", 
+participant_status <- read_delim("/etc/ace-data/home/jberghout/2026_ACE_bioinfo_burden/data/participant_data.tsv", 
     delim = "\t", escape_double = FALSE, 
     trim_ws = TRUE)
 ```
 
 ```{r}
 #Load file with sample level QC
-sample_qc_flags <- read_delim("2026_ACE_bioinfo_burden/data//sample_qc_flags.tsv", 
+sample_qc_flags <- read_delim("/etc/ace-data/home/jberghout/2026_ACE_bioinfo_burden/data/sample_qc_flags.tsv", 
     delim = "\t", escape_double = FALSE, trim_ws = TRUE)
 ```
 
 ```{r}
 #Load ancestry file
-ancestry_table <- read_delim("2026_ACE_bioinfo_burden/data/ancestry_table.tsv", 
+ancestry_table <- read_delim("/etc/ace-data/home/jberghout/2026_ACE_bioinfo_burden/data/ancestry_table.tsv", 
     delim = "\t", escape_double = FALSE, 
     trim_ws = TRUE)
 ```
@@ -75,6 +76,8 @@ How many samples are in the data file? What columns and data does it contain?
 participant_status %>%
   summarize(n_distinct(sample_id))
 ```
+
+Use `skimr` package to summarize
 ```{r}
 skim(participant_status)
 ```
@@ -392,5 +395,7 @@ Save the participant_final table as a tsv in your results folder.
 If you continue working in the same active session and can see participant_final in your sidebar 'Environment', you do not need to save the file and re-load the file, so this step is optional during the tutorial. While working with your real data in the future, you will want to save your `final` dataset for archiving purposes.
  
 ```{r, eval = FALSE}
-write_tsv(participant_final, "2026_ACE_bioinfo_burden/results/participant_final.tsv")
+#If you want to save this, save the path to your own folder and/or give it your own name. 
+write_tsv(participant_final, "/etc/ace-data/home/jberghout/2026_ACE_bioinfo_burden/results/participant_final.tsv")
+
 ```
