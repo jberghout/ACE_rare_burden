@@ -25,17 +25,16 @@ library(patchwork)
 # This package is used for graphical layouts
 
 library(ggvenn)
-# Ce paquet est utilisé pour créer des diagrammes de Venn
+# This package is used to make Venn diagrams
 
 library(skimr)
 # This package allows quick summarization of data tables
 ```
 
-Si vous devez installer l'un de ces paquets, vous pouvez utiliser l'onglet latéral <Packages>, cliquer sur <Install>, et taper le nom pour obtenir le paquet depuis CRAN (Comprehensive R Archive Network).
-Vous pouvez faire de même en tapant : install.packages("SKAT") puis en appuyant sur Entrée.
+If you need to install any of these packages, you can use the sidebar tab <Packages>, press <Install>, and type the name to get the package from CRAN (Comprehensive R Archive Network).
+You can do the same thing by typing: install.packages("SKAT") and pressing enter.
+If an R package is not aviailable through CRAN, it may be available through Bioconductor. Run:
 
-Si un paquet R n'est pas disponible via CRAN, il peut être disponible via Bioconductor. Exécutez :
-:
 `if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
