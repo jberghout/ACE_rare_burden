@@ -15,31 +15,56 @@ This tutorial will begin by conducting sample-level quality control (QC) and sam
 
 ## 1.1 Set up and load libraries
 
+R uses libraries which are sets of functions.
+
 ```{r, warn=FALSE, message=FALSE}
 library(tidyverse)
+# Tidyverse is a package collection of dplyr, stringr, purrr, ggplot2, readr, tidyr, tibble, forcats. If you do not have tidyverse installed and want to save a bit of time, look for `library(dplyr)`, `library(stringr)`, `library(readr)`, and `library(ggplot2)`. 
+
 library(patchwork)
-library(SKAT)
+# This package is used for graphical layouts
+
 library(ggvenn)
+# This package is used to make Venn diagrams
+
 library(skimr)
+# This package allows quick summarization of data tables
 ```
+
+If you need to install any of these packages, you can use the sidebar tab <Packages>, press <Install>, and type the name to get the package from CRAN (Comprehensive R Archive Network).
+You can do the same thing by typing: `install.packages("SKAT")` and pressing enter.
+
+If an R package is not aviailable through CRAN, it may be available through Bioconductor. Run:
+`if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("VariantAnnotation")`
+
 
 # 2 Load data files into the environment
 
-Begin by loading qc and metadata files from server (HPC) to the local environment.
+Begin by loading qc and metadata files from server (HPC: ) or Github (to the local environment.
+
+The paths here 
 
 ```{r}
 #Load file with sample data
-participant_status<-read_delim("/Volumes/bcbb/berghoutjm/ace_burden/data/metadata/participant_data.tsv", delim = "\t", escape_double = FALSE, trim_ws = TRUE, comment = "#")
+participant_status <- read_delim("2026_ACE_bioinfo_burden/data/participant_data.tsv", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE)
 ```
 
 ```{r}
 #Load file with sample level QC
-sample_qc_flags <- read_delim("/Volumes/bcbb/berghoutjm/ace_burden/data/metadata/sample_qc_flags.tsv", delim = "\t", escape_double = FALSE, trim_ws = TRUE)
+sample_qc_flags <- read_delim("2026_ACE_bioinfo_burden/data//sample_qc_flags.tsv", 
+    delim = "\t", escape_double = FALSE, trim_ws = TRUE)
 ```
 
 ```{r}
 #Load ancestry file
-ancestry<-read_delim("/Volumes/bcbb/berghoutjm/ace_burden/data/metadata/ancestry_table.tsv", delim = "\t", escape_double = FALSE, trim_ws = TRUE)
+ancestry_table <- read_delim("2026_ACE_bioinfo_burden/data/ancestry_table.tsv", 
+    delim = "\t", escape_double = FALSE, 
+    trim_ws = TRUE)
 ```
 
 ## 2.1 Look at the data
@@ -47,7 +72,10 @@ ancestry<-read_delim("/Volumes/bcbb/berghoutjm/ace_burden/data/metadata/ancestry
 How many samples are in the data file? What columns and data does it contain?
 
 ```{r}
-n_distinct(participant_status$sample_id)
+participant_status %>%
+  summarize(n_distinct(sample_id))
+```
+```{r}
 skim(participant_status)
 ```
 
@@ -122,7 +150,7 @@ ggvenn(data_vs_qc)
 
 # What about the ancestry files?
 data_vs_ancestry<-list(
-  ancestry = ancestry$`#sample_id`,
+  ancestry = ancestry_table$`#sample_id`,
   data = participant_status$sample_id
 )
 ggvenn(data_vs_ancestry)
@@ -310,14 +338,14 @@ We will use these ancestry PCs as covariates to reduce confounding from populati
 
 ```{r}
 # Notice that the ancestry table also includes some reference samples from the 1000 Genomes Project in addition to our samples
-head(ancestry)
-skim(ancestry)
+head(ancestry_table)
+skim(ancestry_table)
 ```
 
 Plot the first two PCs to visualize.
 
 ```{r}
-ancestry %>%
+ancestry_table %>%
   ggplot(aes(x = PC1, y = PC2, color = predicted_ancestry)) +
   geom_point() +
   theme_minimal() +
@@ -332,7 +360,7 @@ In this table join, you will notice that we need to join the ancestry table by t
 
 ```{r}
 participant_final <- participant_final %>%
-  left_join(ancestry %>% 
+  left_join(ancestry_table %>% 
             dplyr::select(`#sample_id`, predicted_ancestry, PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, PC9, PC10), 
             by = c("sample_id" = "#sample_id"))
 ```
@@ -357,10 +385,12 @@ participant_final %>%
   labs(title = "Ancestry Distribution of the Cohort", x = "PC1", y = "PC2")
 ```
 
-# Optional:
+# Before the next portion:
 
-Save the participant_final table as a tsv
+Save the participant_final table as a tsv in your results folder.
 
+If you continue working in the same active session and can see participant_final in your sidebar 'Environment', you do not need to save the file and re-load the file, so this step is optional during the tutorial. While working with your real data in the future, you will want to save your `final` dataset for archiving purposes.
+ 
 ```{r, eval = FALSE}
-write_tsv(participant_final, "participant_final.tsv")
+write_tsv(participant_final, "2026_ACE_bioinfo_burden/results/participant_final.tsv")
 ```
