@@ -38,11 +38,11 @@ The tutorial is split into two parts:
 
 ### Sample QC and cohort characterization
 Builds an analysis-ready cohort by applying call rate, heterozygosity, and sex-concordance checks; then summarizes phenotype and ancestry structure.
-This can be found in the code folder as skat_tutorial.qmd (english) or skat_tutorial_fr.qmd (french).
+This can be found in the code folder as `skat_tutorial_part1.qmd` (english) or `skat_tutorial_part1_fr.qmd` (french).
 
 ### Variant filtering and SKAT-O testing
 Parses VEP consequence annotations, applies clinically and functionally informed qualifying-variant filters, constructs genotype dosage matrices, and runs per-gene SKAT-O burden tests with covariate adjustment.
-This can be found in the code folder as skat_tutorial_variants.qmd (english) or skat_tutorial_variants_fr.qmd (french).
+This can be found in the code folder as `skat_tutorial_variants_part2.qmd` (english) or `skat_tutorial_variants_part2_fr.qmd` (french).
 
 ---
 
