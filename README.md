@@ -4,15 +4,28 @@
 
 This repository was created to support a human genetics and bioinformatics workshop given during the African Centers for Excellence (ACE) Global Council in Sept 2026. Students can find all training materials and example code. 
 
-In order to run all materials, students will need:
-1. RStudio or Positron installed on their computer. Both are free and open-source, available to install at the links below if necessary.
-- https://posit.co/products/open-source/rstudio
-- https://posit.co/products/ide/positron
-2. The ability to connect to the [ACE Uganda HPC](https://ace-bioinformatics.github.io/ace-ug-hpc-wiki/)
+## Set up:
+In order to run all materials, you will need a computer with R and R Studio and you will need some data files. We can help you with this, but it will be a great time savings if you can get this set up before we begin.
 
-Optional, but very useful: 
+There are three ways to get R & RStudio working for you:
+1. If you already have the ability to connect to [ACE Uganda HPC](https://ace-bioinformatics.github.io/ace-ug-hpc-wiki/) which can be connected to via [OnDemand](https://ondemand.ace.ac.ug/pun/sys/dashboard), you're all set! You will
+    * go to the OnDemand link, click on the RStudio Server icon
+    * in `Number of hours`, request 3h. Otherwise, leave as defaults
+    *  click `Launch` and wait for the message `Session was successfully created.` to appear (a few seconds)
+    * scroll to the bottom of the session section and click `Connect to RStudio Server`
 
-3. A github account
+2. If you are working with your personal laptop, you can install these from the internet. They are free and open source, and should be straightforward
+   * If you have downloaded R before, or think you have - open the Terminal or Command Shell and type R --version. If this gives you a version, you have R. If this gives you an error, you need to install
+   * Download R, following the instructions on this page: https://www.r-project.org/
+      * you can use any mirror, I will recommend: Worldwide https://mirrors.cicku.me/cran/
+   * Download RStudio, following the instructions here: https://posit.co/products/open-source/rstudio
+  
+3. If you do not have a laptop or ACE account, the computer room does have computers and almost all of these do have R and RStudio. This will also work. However - you can't take it home with you.
+
+There are two ways to get the data:
+
+1. If you have an ACE HPC account, you're all set! All data we will use are pre-loaded
+2. If you do not have an ACE HPC account or just prefer to work from local files, you can download all files from the `data` folder in this github. Download them to your computer and keep track of where they are.
 
 ---
 ## Tutorial Content:
