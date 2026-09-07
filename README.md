@@ -22,6 +22,8 @@ There are three ways to get R & RStudio working for you:
   
 3. If you do not have a laptop or ACE account, the computer room does have computers and almost all of these do have R and RStudio. This will also work. However - you can't take it home with you.
 
+Once you have R and RStudio set up and open, you can install the following R packages from inside it: `tidyverse`, `SKAT`, `skimr`, `patchwork`, `VariantAnnotation`.
+
 There are two ways to get the data:
 
 1. If you have an ACE HPC account, you're all set! All data we will use are pre-loaded
