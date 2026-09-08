@@ -4,6 +4,12 @@
 
 This repository was created to support a human genetics and bioinformatics workshop given during the African Centers for Excellence (ACE) Global Council in Sept 2026. Students can find all training materials and example code. 
 
+**Date:** Wednesday, Sept 9, 2026 @9am-noon
+
+**Location:** Institute Pasteur Tunis (not the Sheraton Hotel Tunis): [address](https://www.google.com/maps/place/Institut+Pasteur/@36.8225779,10.1790455,17z/data=!4m14!1m7!3m6!1s0x12fd3485d1a37e79:0xd742845b5ac72989!2sInstitut+Pasteur!8m2!3d36.8225779!4d10.1790455!16s%2Fg%2F121rps8z!3m5!1s0x12fd3485d1a37e79:0xd742845b5ac72989!8m2!3d36.8225779!4d10.1790455!16s%2Fg%2F121rps8z?entry=ttu&g_ep=EgoyMDI2MDkwMi4wIKXMDSoASAFQAw%3D%3D) Please make your own way here from your respective hotels. 
+
+**Contact:** Joanne Berghout joanne.berghout@nih.gov or WhatsApp +1 2072660930 
+
 ## Set up:
 In order to run all materials, you will need a computer with R and R Studio and you will need some data files. We can help you with this, but it will be a great time savings if you can get this set up before we begin.
 
