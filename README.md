@@ -15,7 +15,7 @@ If you are leaving from the Sheraton Hotel, a shuttle will depart from the lobby
 In order to run all materials, you will need a computer with R and R Studio and you will need some data files. We can help you with this, but it will be a great time savings if you can get this set up before we begin.
 
 There are three ways to get R & RStudio working for you:
-1. If you already have the ability to connect to [ACE Uganda HPC](https://ace-bioinformatics.github.io/ace-ug-hpc-wiki/) which can be connected to via [OnDemand](https://ondemand.ace.ac.ug/pun/sys/dashboard), you're all set! You will
+1. If you already have the ability to connect to [ACE Uganda HPC](https://ace-bioinformatics.github.io/ace-ug-hpc-wiki/) which can be connected to via [OnDemand](https://ondemand.ace.ac.ug/pun/sys/dashboard), you're all set! You will follow the instructions on this page: https://ace-bioinformatics.github.io/ace-ug-hpc-wiki/docs/software/open-ondemand/intro which, in brief are:
     * go to the OnDemand link, click on the RStudio Server icon
     * in `Number of hours`, request 3h. Otherwise, leave as defaults
     *  click `Launch` and wait for the message `Session was successfully created.` to appear (a few seconds)
