@@ -27,7 +27,7 @@ Once you have R and RStudio set up and open, you can install the following R pac
 There are two ways to get the data:
 
 1. If you have an ACE HPC account, you're all set! All data we will use are pre-loaded
-2. If you do not have an ACE HPC account or just prefer to work from local files, you can download all files from the `data` folder in this github. Download them to your computer and keep track of where they are.
+2. If you do not have an ACE HPC account or just prefer to work from local files, you can download all files from the `data` folder in this github. Just open the folder, click on each file and use the icon on the right to download the raw file to your computer and keep track of where they are.
 
 ---
 ## Tutorial Content:
