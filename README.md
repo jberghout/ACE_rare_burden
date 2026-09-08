@@ -25,7 +25,7 @@ There are three ways to get R & RStudio working for you:
    * If you have downloaded R before, or think you have - open the Terminal or Command Shell and type R --version. If this gives you a version, you have R. If this gives you an error, you need to install
    * Download R, following the instructions on this page: https://www.r-project.org/
       * you can use any mirror, I will recommend: Worldwide https://mirrors.cicku.me/cran/
-   * Download RStudio, following the instructions here: https://posit.co/products/open-source/rstudio
+   * Once you have R, download and install the RStudio application, following the instructions here: https://posit.co/products/open-source/rstudio
   
 3. If you do not have a laptop or ACE account, the computer room does have computers and almost all of these do have R and RStudio. This will also work. However - you can't take it home with you.
 
