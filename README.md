@@ -9,7 +9,7 @@ This repository was created to support a human genetics and bioinformatics works
 **Location:** Institute Pasteur Tunis (not the Sheraton Hotel Tunis): [address](https://www.google.com/maps/place/Institut+Pasteur/@36.8225779,10.1790455,17z/data=!4m14!1m7!3m6!1s0x12fd3485d1a37e79:0xd742845b5ac72989!2sInstitut+Pasteur!8m2!3d36.8225779!4d10.1790455!16s%2Fg%2F121rps8z!3m5!1s0x12fd3485d1a37e79:0xd742845b5ac72989!8m2!3d36.8225779!4d10.1790455!16s%2Fg%2F121rps8z?entry=ttu&g_ep=EgoyMDI2MDkwMi4wIKXMDSoASAFQAw%3D%3D) 
 If you are leaving from the Sheraton Hotel, a shuttle will depart from the lobby at 8:30am. If you are a student staying at the hotel that was arranged by ACE, it should be only a 2min walk. 
 
-**Contact:** Joanne Berghout joanne.berghout@nih.gov or WhatsApp +1 2072660930 
+**Contact:** Joanne Berghout joanne.berghout@nih.gov 
 
 ## Set up:
 In order to run all materials, you will need a computer with R and R Studio and you will need some data files. We can help you with this, but it will be a great time savings if you can get this set up before we begin.
